@@ -1,0 +1,22 @@
+
+use v5.012;
+use strict;
+use warnings;
+
+use IO::Socket::INET;
+use Chess;
+
+my $server = shift or die "No port or server specified";
+my $port = shift or die "No port or server specified";
+my $socket = IO::Socket::INET->new(
+		PeerAddr => $server,
+		PeerPort => $port,
+		Proto    => 'tcp') or die "Couldn't create socket";
+
+print "Trying to connect to $server from port $port";
+
+while (<STDIN>){
+	print $socket $_;
+	print scalar <$socket>;
+}
+close $socket;

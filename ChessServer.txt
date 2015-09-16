@@ -1,0 +1,47 @@
+
+use v5.012;
+use strict;
+use warnings;
+
+use Chess::Board;
+use IO::Socket::INET;
+use threads;
+
+my $bqueen = 'q';
+my $bking  = 'i';
+my $brook  = 'r';
+my $bknight = 'k';
+my $bbishop = 'b';
+my $bpawn   = 'p';
+my $wqueen = 'Q';
+my $wking  = 'I';
+my $wrook  = 'R';
+my $wknight = 'K';
+my $wbishop = 'R';
+my $wpawn   = 'P';
+
+#fix bsquare
+
+my $bsquare = 178;
+my $wsquare = " ";
+
+
+my $port = shift or die "No port specified";
+my $socket = IO::Socket::INET->new(
+	LocalPort => $port,
+	Proto     => 'tcp',
+	Listen    => SOMAXCONN ) or die "Couldn't create a socket";
+
+print "Listening for connection on $port \n";
+
+while (my $client = $socket->accept) {
+	my $addr = gethostbyaddr($client->peeraddr, AF_INET);
+	my $port = $client->peerport;
+	while(<$client>) {
+	print "[Client:$port] $_";
+	
+	print $client "$.: $_";
+	}
+}
+
+close $socket;
