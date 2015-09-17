@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use IO::Socket::INET;
-use Chess;
 
 my $server = shift or die "No port or server specified";
 my $port = shift or die "No port or server specified";
@@ -13,10 +12,33 @@ my $socket = IO::Socket::INET->new(
 		PeerPort => $port,
 		Proto    => 'tcp') or die "Couldn't create socket";
 
-print "Trying to connect to $server from port $port";
+# receive info about color
 
-while (<STDIN>){
-	print $socket $_;
-	print scalar <$socket>;
+for my $x (1..3)
+{
+	print <$socket>;
 }
+print "\n";
+
+# wait for turn
+
+
+my $responce = "";
+
+do
+{
+	my $serverstate = <$socket>;
+	if (index($serverstate, "Your turn"))
+	{
+		do
+		{
+			my $move = <STDIN>;
+			print $socket $move;
+			$responce = <$socket>;
+		}while ($responce eq "Invalid move" or $responce eq "Invalid square");
+		print <$socket>;
+	}
+}while(1);
+
+
 close $socket;

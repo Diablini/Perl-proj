@@ -3,9 +3,8 @@ use v5.012;
 use strict;
 use warnings;
 
-use Chess::Board;
+use Chess;
 use IO::Socket::INET;
-use threads;
 
 my $bqueen = 'q';
 my $bking  = 'i';
@@ -20,10 +19,82 @@ my $wknight = 'K';
 my $wbishop = 'R';
 my $wpawn   = 'P';
 
-#fix bsquare
-
-my $bsquare = 178;
+my $bsquare = "#";
 my $wsquare = " ";
+
+sub init_board
+{
+	my $board = shift;
+	for my $index ("a".."h") {
+		my $bpawn = Chess::Piece::Pawn->new($index . "7","black", $bpawn);
+		my $wpawn = Chess::Piece::Pawn->new($index . "2","white", $wpawn);
+		$board->set_piece_at($index . "7", $bpawn);
+		$board->set_piece_at($index . "2", $wpawn);
+	}
+	my $lbrook = Chess::Piece::Rook->new("a8","black", $brook);
+	my $rbrook = Chess::Piece::Rook->new("h8","black", $brook);
+	my $lwrook = Chess::Piece::Rook->new("a1","white", $wrook);
+	my $rwrook = Chess::Piece::Rook->new("h1","white", $wrook);
+	my $lbknight = Chess::Piece::Knight->new("b8","black", $bknight);
+	my $rbknight = Chess::Piece::Knight->new("g8","black", $bknight);
+	my $lwknight = Chess::Piece::Knight->new("b1","white", $wknight);
+	my $rwknight = Chess::Piece::Knight->new("g1","white", $wknight);
+	my $lbbishop = Chess::Piece::Bishop->new("c8","black", $bbishop);
+	my $rbbishop = Chess::Piece::Bishop->new("f8","black", $bbishop);
+	my $lwbishop = Chess::Piece::Bishop->new("c1","white", $wbishop);
+	my $rwbishop = Chess::Piece::Bishop->new("f1","white", $wbishop);
+	my $bking = Chess::Piece::King->new("d8","black", $bking);
+	my $wking = Chess::Piece::King->new("e1","white", $wking);
+	my $bqueen = Chess::Piece::Queen->new("e8","black", $bqueen);
+	my $wqueen = Chess::Piece::Queen->new("d1","white", $wqueen);
+
+	$board->set_piece_at("a8", $lbrook);
+	$board->set_piece_at("h8", $rbrook);
+	$board->set_piece_at("a1", $lwrook);
+	$board->set_piece_at("h1", $rwrook);
+	$board->set_piece_at("b8", $lbknight);
+	$board->set_piece_at("g8", $rbknight);
+	$board->set_piece_at("b1", $lwknight);
+	$board->set_piece_at("g1", $rwknight);
+	$board->set_piece_at("c8", $lbbishop);
+	$board->set_piece_at("f8", $rbbishop);
+	$board->set_piece_at("c1", $lwbishop);
+	$board->set_piece_at("f1", $rwbishop);
+	$board->set_piece_at("d8", $bking);
+	$board->set_piece_at("e1", $wking);
+	$board->set_piece_at("e8", $bqueen);
+	$board->set_piece_at("d1", $wqueen);
+}
+
+sub visualize_board
+{
+	my $board = shift;
+	my $str = "";
+	foreach my $index (reverse 1..8){
+		$str .= $index . "  ";
+		
+		foreach my $letter ("a".."h"){
+			my $sq = $letter . $index;
+			if (defined ($board->get_piece_at($sq)) )
+			{
+				$str .= $board->get_piece_at($sq)->get_description() ;
+			}
+			else {
+				if ($board->get_color_of($sq) eq "dark") {
+					$str .= $bsquare;
+					}
+				else {
+					$str .= $wsquare;
+					}
+			}
+		}
+		$str .= "\n";
+	}
+
+	$str .= "\n";
+	$str .= "   abcdefgh";
+	return $str;
+}
 
 
 my $port = shift or die "No port specified";
@@ -32,16 +103,81 @@ my $socket = IO::Socket::INET->new(
 	Proto     => 'tcp',
 	Listen    => SOMAXCONN ) or die "Couldn't create a socket";
 
-print "Listening for connection on $port \n";
+print "Waiting for connection on $port \n";
 
 while (my $client = $socket->accept) {
 	my $addr = gethostbyaddr($client->peeraddr, AF_INET);
 	my $port = $client->peerport;
-	while(<$client>) {
-	print "[Client:$port] $_";
+
+	print "Client has connected from $addr on port $port !\n";
+
+	# set up game
+
+	print "Setting game up \n";
+
+	my $board = Chess::Board->new();
+	init_board $board;
+	my $game = Chess::Game->new("pl1","pl2");
+
+	my $turn = "white";
+
+	print "You are white\n";
+	print $client "You are black\n";
+	print $client "$turn to move\n";
+	print $client visualize_board $board;
+	print visualize_board $board;
+	print "\n";
+
+	while (not defined $game->result())
+	{
+	 if ($turn eq "white")
+	 {
+		do {
+			my $move = <STDIN>;
+			if ($move =~ /[a-h][1-8]\s[a-h][1-8]/)
+			{
+				my @m = split(" ", $move);
+					if ($game->is_move_legal($m[0], $m[1]))
+					{
+						$game->make_move($m[0], $m[1]);
+						$board->set_piece_at($m[1], $board->get_piece_at($m[0]));
+						$board->set_piece_at($m[0], undef);
+						$turn = "black";
+						print "\n\n";
+						print visualize_board $board;
+						print "\n";
+						last;
+					}
+					else {print "Invalid move";}
+
+			} else {print "Invalid square";}
+	           }
+	 }
+	else {
+		do {
+			print $client "Your turn";
+			my $mov = <$client>;
+			if ($mov =~ /[a-h][1-8]\s[a-h][1-8]/)
+			{
+				my @ma = split(" ", $mov);
+					if ($game->is_move_legal($ma[0], $ma[1]))
+					{
+						$game->make_move($ma[0], $ma[1]);
+						$board->set_piece_at($ma[1], $board->get_piece_at($ma[0]));
+						$board->set_piece_at($ma[0], undef);
+						$turn = "white";
+						print $client "\n\n";
+						print $client visualize_board $board;
+						last;
+					}
+					else {print $client "Invalid move";}
+
+			} else {print $client "Invalid square";}
+	           }
 	
-	print $client "$.: $_";
+	     }
 	}
 }
 
 close $socket;
+
