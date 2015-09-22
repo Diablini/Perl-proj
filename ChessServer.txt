@@ -105,7 +105,7 @@ my $socket = IO::Socket::INET->new(
 
 print "Waiting for connection on $port \n";
 
-while (my $client = $socket->accept) {
+my $clientsocket = $socket->accept;
 	my $addr = gethostbyaddr($client->peeraddr, AF_INET);
 	my $port = $client->peerport;
 
@@ -117,67 +117,45 @@ while (my $client = $socket->accept) {
 
 	my $board = Chess::Board->new();
 	init_board $board;
-	my $game = Chess::Game->new("pl1","pl2");
+	my $game = Chess::Game->new("1","2");
 
 	my $turn = "white";
 
 	print "You are white\n";
-	print $client "You are black\n";
-	print $client "$turn to move\n";
-	print $client visualize_board $board;
+	print $clientsocket visualize_board $board;
 	print visualize_board $board;
 	print "\n";
+	print "Your turn to move\n";
 
-	while (not defined $game->result())
+	while(not ($game->player_checkmated("1") and $game->player_checkmated("2")
+			 and $game->player_stalemated("1") and $game->player_stalemated("2")))
 	{
-	 if ($turn eq "white")
-	 {
-		do {
-			my $move = <STDIN>;
-			if ($move =~ /[a-h][1-8]\s[a-h][1-8]/)
+		if ($turn eq "white")
+		{	
+			my $move = "junk";
+			until ($move ~= /[a-h][1-8]\s[a-h][1-8]/ and $game->is_move_legal(split(" ",$move)[0], split(" ",$move)[1]))
 			{
-				my @m = split(" ", $move);
-					if ($game->is_move_legal($m[0], $m[1]))
-					{
-						$game->make_move($m[0], $m[1]);
-						$board->set_piece_at($m[1], $board->get_piece_at($m[0]));
-						$board->set_piece_at($m[0], undef);
-						$turn = "black";
-						print "\n\n";
-						print visualize_board $board;
-						print "\n";
-						last;
-					}
-					else {print "Invalid move";}
-
-			} else {print "Invalid square";}
-	           }
-	 }
-	else {
-		do {
-			print $client "Your turn";
-			my $mov = <$client>;
-			if ($mov =~ /[a-h][1-8]\s[a-h][1-8]/)
+				print "Make a valid move: ";
+				print "\n";
+				$move = <STDIN>;
+			}
+			my $sqone = split (" ", $move)[0];
+			my $sqtwo = split (" ", $move)[1];
+			$game->make_move($sqone,$sqtwo);
+		}
+		else
+		{
+			my $clientmove = "junk";
+			until ($clientmove ~= /[a-h][1-8]\s[a-h][1-8] and $game->is_move_legal(split(" ",$clientmove)[0], split(" ", $clientmove)[1]))
 			{
-				my @ma = split(" ", $mov);
-					if ($game->is_move_legal($ma[0], $ma[1]))
-					{
-						$game->make_move($ma[0], $ma[1]);
-						$board->set_piece_at($ma[1], $board->get_piece_at($ma[0]));
-						$board->set_piece_at($ma[0], undef);
-						$turn = "white";
-						print $client "\n\n";
-						print $client visualize_board $board;
-						last;
-					}
-					else {print $client "Invalid move";}
-
-			} else {print $client "Invalid square";}
-	           }
-	
-	     }
-	}
-}
+				print $clientsocket "Make a valid move";
+				$clientmove = <$clientsocket>;
+			}
+			my $squareone = split(" ", $clientmove)[0];
+			my $squaretwo = split(" ", $clientmove)[1];
+			$game->make_move($squareone, $squaretwo);
+		}
+	} 
 
 close $socket;
 

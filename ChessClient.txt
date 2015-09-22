@@ -12,33 +12,31 @@ my $socket = IO::Socket::INET->new(
 		PeerPort => $port,
 		Proto    => 'tcp') or die "Couldn't create socket";
 
-# receive info about color
+# get board
 
-for my $x (1..3)
-{
-	print <$socket>;
-}
+print <$socket>;
 print "\n";
 
-# wait for turn
+# wait for responce
 
+my $responce = <$socket>;
 
-my $responce = "";
-
-do
+while ($responce ne "You win" and $responce ne "You lose" and $responce ne "Stalemate")
 {
-	my $serverstate = <$socket>;
-	if (index($serverstate, "Your turn"))
+	print $responce;
+	print "\n";
+	print "Make a move\n";
+	my $validation = "Make a valid move";
+	while($validation eq "Make a valid move")
 	{
-		do
-		{
-			my $move = <STDIN>;
-			print $socket $move;
-			$responce = <$socket>;
-		}while ($responce eq "Invalid move" or $responce eq "Invalid square");
-		print <$socket>;
+		my $move = <STDIN>;
+		print $socket $move;
+		$validation = <$socket>;
+		print $validation;
 	}
-}while(1);
+	$responce = <$socket>;
+}
+
 
 
 close $socket;
